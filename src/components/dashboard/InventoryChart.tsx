@@ -1,16 +1,20 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 
-const inventoryData = [
-  { name: "Electronics", value: 45, count: 892, color: "#3b82f6" },
-  { name: "Clothing", value: 25, count: 495, color: "#10b981" },
-  { name: "Home & Garden", value: 15, count: 297, color: "#f59e0b" },
-  { name: "Sports", value: 10, count: 198, color: "#ef4444" },
-  { name: "Books", value: 5, count: 99, color: "#8b5cf6" },
-];
+const fetchInventoryData = async () => {
+  const response = await fetch('/api/inventory/distribution');
+  if (!response.ok) throw new Error('Failed to fetch inventory data');
+  return response.json();
+};
 
 export const InventoryChart = () => {
+  const { data: inventoryData, isLoading, error } = useQuery({
+    queryKey: ['inventory-distribution'],
+    queryFn: fetchInventoryData,
+  });
+
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -31,6 +35,36 @@ export const InventoryChart = () => {
     );
   };
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Inventory Distribution (Loading...)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-slate-500">Loading inventory data...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Inventory Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-red-500">Error loading inventory data</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -50,7 +84,7 @@ export const InventoryChart = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {inventoryData.map((entry, index) => (
+                {inventoryData?.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>

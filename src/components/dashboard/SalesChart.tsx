@@ -1,27 +1,54 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 
-const salesData = [
-  { month: "Jan", sales: 425000, target: 400000 },
-  { month: "Feb", sales: 378000, target: 420000 },
-  { month: "Mar", sales: 489000, target: 450000 },
-  { month: "Apr", sales: 512000, target: 480000 },
-  { month: "May", sales: 445000, target: 500000 },
-  { month: "Jun", sales: 623000, target: 520000 },
-  { month: "Jul", sales: 687000, target: 550000 },
-  { month: "Aug", sales: 734000, target: 580000 },
-  { month: "Sep", sales: 691000, target: 600000 },
-  { month: "Oct", sales: 758000, target: 620000 },
-  { month: "Nov", sales: 812000, target: 650000 },
-  { month: "Dec", sales: 896000, target: 680000 },
-];
+const fetchSalesData = async () => {
+  const response = await fetch('/api/sales/monthly');
+  if (!response.ok) throw new Error('Failed to fetch sales data');
+  return response.json();
+};
 
 const formatZAR = (value: number) => {
   return `R ${value.toLocaleString()}`;
 };
 
 export const SalesChart = () => {
+  const { data: salesData, isLoading, error } = useQuery({
+    queryKey: ['sales-monthly'],
+    queryFn: fetchSalesData,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Performance (Loading...)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-slate-500">Loading sales data...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-red-500">Error loading sales data</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

@@ -1,21 +1,54 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 
-const revenueData = [
-  { quarter: "Q1 2023", revenue: 1245680, profit: 312420 },
-  { quarter: "Q2 2023", revenue: 1389250, profit: 389250 },
-  { quarter: "Q3 2023", revenue: 1567890, profit: 456790 },
-  { quarter: "Q4 2023", revenue: 1823450, profit: 547035 },
-  { quarter: "Q1 2024", revenue: 1945320, profit: 583596 },
-  { quarter: "Q2 2024", revenue: 2134567, profit: 640370 },
-];
+const fetchRevenueData = async () => {
+  const response = await fetch('/api/revenue/quarterly');
+  if (!response.ok) throw new Error('Failed to fetch revenue data');
+  return response.json();
+};
 
 const formatZAR = (value: number) => {
   return `R ${(value / 1000).toFixed(0)}k`;
 };
 
 export const RevenueChart = () => {
+  const { data: revenueData, isLoading, error } = useQuery({
+    queryKey: ['revenue-quarterly'],
+    queryFn: fetchRevenueData,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue & Profit Trends (Loading...)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-slate-500">Loading revenue data...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue & Profit Trends</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-red-500">Error loading revenue data</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

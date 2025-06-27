@@ -1,24 +1,54 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 
-const regionalData = [
-  { province: "Gauteng", sales: 1245680, customers: 342 },
-  { province: "Western Cape", sales: 892340, customers: 256 },
-  { province: "KwaZulu-Natal", sales: 628150, customers: 189 },
-  { province: "Eastern Cape", sales: 456780, customers: 134 },
-  { province: "Free State", sales: 298450, customers: 87 },
-  { province: "Mpumalanga", sales: 234560, customers: 69 },
-  { province: "Limpopo", sales: 189340, customers: 52 },
-  { province: "North West", sales: 167230, customers: 48 },
-  { province: "Northern Cape", sales: 123450, customers: 34 },
-];
+const fetchRegionalData = async () => {
+  const response = await fetch('/api/sales/regional');
+  if (!response.ok) throw new Error('Failed to fetch regional data');
+  return response.json();
+};
 
 const formatZAR = (value: number) => {
   return `R ${(value / 1000).toFixed(0)}k`;
 };
 
 export const RegionalChart = () => {
+  const { data: regionalData, isLoading, error } = useQuery({
+    queryKey: ['sales-regional'],
+    queryFn: fetchRegionalData,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales by Province (Loading...)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-slate-500">Loading regional data...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales by Province</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <div className="text-red-500">Error loading regional data</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

@@ -9,8 +9,41 @@ import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { RegionalChart } from "@/components/dashboard/RegionalChart";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { useQuery } from "@tanstack/react-query";
+
+const fetchKPIData = async () => {
+  const response = await fetch('/api/kpis');
+  if (!response.ok) throw new Error('Failed to fetch KPI data');
+  return response.json();
+};
+
+const fetchMetricsData = async (tab: string) => {
+  const response = await fetch(`/api/metrics/${tab}`);
+  if (!response.ok) throw new Error('Failed to fetch metrics data');
+  return response.json();
+};
 
 const Index = () => {
+  const { data: kpiData, isLoading: kpiLoading } = useQuery({
+    queryKey: ['kpis'],
+    queryFn: fetchKPIData,
+  });
+
+  const { data: salesMetrics } = useQuery({
+    queryKey: ['metrics-sales'],
+    queryFn: () => fetchMetricsData('sales'),
+  });
+
+  const { data: inventoryMetrics } = useQuery({
+    queryKey: ['metrics-inventory'],
+    queryFn: () => fetchMetricsData('inventory'),
+  });
+
+  const { data: regionalMetrics } = useQuery({
+    queryKey: ['metrics-regional'],
+    queryFn: () => fetchMetricsData('regional'),
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -31,34 +64,48 @@ const Index = () => {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Revenue"
-            value="R 2,847,392.50"
-            change="+12.5%"
-            trend="up"
-            icon={DollarSign}
-          />
-          <KPICard
-            title="Total Orders"
-            value="1,247"
-            change="+8.3%"
-            trend="up"
-            icon={Package}
-          />
-          <KPICard
-            title="Active Customers"
-            value="892"
-            change="+15.7%"
-            trend="up"
-            icon={Users}
-          />
-          <KPICard
-            title="Growth Rate"
-            value="18.9%"
-            change="+2.1%"
-            trend="up"
-            icon={TrendingUp}
-          />
+          {kpiLoading ? (
+            <>
+              {[1,2,3,4].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-20 bg-slate-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <KPICard
+                title="Total Revenue"
+                value={kpiData?.totalRevenue || "Loading..."}
+                change={kpiData?.revenueChange || "..."}
+                trend="up"
+                icon={DollarSign}
+              />
+              <KPICard
+                title="Total Orders"
+                value={kpiData?.totalOrders || "Loading..."}
+                change={kpiData?.ordersChange || "..."}
+                trend="up"
+                icon={Package}
+              />
+              <KPICard
+                title="Active Customers"
+                value={kpiData?.activeCustomers || "Loading..."}
+                change={kpiData?.customersChange || "..."}
+                trend="up"
+                icon={Users}
+              />
+              <KPICard
+                title="Growth Rate"
+                value={kpiData?.growthRate || "Loading..."}
+                change={kpiData?.growthChange || "..."}
+                trend="up"
+                icon={TrendingUp}
+              />
+            </>
+          )}
         </div>
 
         {/* Main Dashboard Content */}
@@ -91,15 +138,21 @@ const Index = () => {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">R 425,680</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {salesMetrics?.thisMonth || "Loading..."}
+                      </div>
                       <div className="text-sm text-green-700">This Month</div>
                     </div>
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">R 378,920</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {salesMetrics?.lastMonth || "Loading..."}
+                      </div>
                       <div className="text-sm text-blue-700">Last Month</div>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">12.3%</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {salesMetrics?.growth || "Loading..."}
+                      </div>
                       <div className="text-sm text-purple-700">Growth</div>
                     </div>
                   </div>
@@ -118,15 +171,21 @@ const Index = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                     <span className="font-medium">Low Stock Items</span>
-                    <span className="text-red-600 font-bold">23</span>
+                    <span className="text-red-600 font-bold">
+                      {inventoryMetrics?.lowStock || "..."}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                     <span className="font-medium">Reorder Required</span>
-                    <span className="text-yellow-600 font-bold">12</span>
+                    <span className="text-yellow-600 font-bold">
+                      {inventoryMetrics?.reorderRequired || "..."}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                     <span className="font-medium">In Stock</span>
-                    <span className="text-green-600 font-bold">1,847</span>
+                    <span className="text-green-600 font-bold">
+                      {inventoryMetrics?.inStock || "..."}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -141,21 +200,27 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl font-bold">Gauteng</div>
-                    <div className="text-2xl font-bold text-blue-600 mt-2">R 1,245,680</div>
-                    <div className="text-sm text-slate-600">45.2% of total</div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl font-bold">Western Cape</div>
-                    <div className="text-2xl font-bold text-green-600 mt-2">R 892,340</div>
-                    <div className="text-sm text-slate-600">32.1% of total</div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl font-bold">KwaZulu-Natal</div>
-                    <div className="text-2xl font-bold text-purple-600 mt-2">R 628,150</div>
-                    <div className="text-sm text-slate-600">22.7% of total</div>
-                  </div>
+                  {regionalMetrics?.topRegions?.map((region: any, index: number) => (
+                    <div key={index} className="text-center p-4 border rounded-lg">
+                      <div className="text-xl font-bold">{region.name}</div>
+                      <div className="text-2xl font-bold text-blue-600 mt-2">
+                        {region.sales}
+                      </div>
+                      <div className="text-sm text-slate-600">{region.percentage} of total</div>
+                    </div>
+                  )) || (
+                    <>
+                      <div className="text-center p-4 border rounded-lg animate-pulse">
+                        <div className="h-16 bg-slate-200 rounded"></div>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg animate-pulse">
+                        <div className="h-16 bg-slate-200 rounded"></div>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg animate-pulse">
+                        <div className="h-16 bg-slate-200 rounded"></div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
