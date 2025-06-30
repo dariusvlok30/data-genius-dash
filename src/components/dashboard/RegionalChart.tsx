@@ -2,28 +2,25 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-
-const fetchRegionalData = async () => {
-  const response = await fetch('/api/sales/regional');
-  if (!response.ok) throw new Error('Failed to fetch regional data');
-  return response.json();
-};
+import { fetchDashboardData, extractRegionalData } from "@/services/apiService";
 
 const formatZAR = (value: number) => {
   return `R ${(value / 1000).toFixed(0)}k`;
 };
 
 export const RegionalChart = () => {
-  const { data: regionalData, isLoading, error } = useQuery({
-    queryKey: ['sales-regional'],
-    queryFn: fetchRegionalData,
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['dashboard-data'],
+    queryFn: fetchDashboardData,
   });
+
+  const regionalData = dashboardData ? extractRegionalData(dashboardData) : [];
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Sales by Province (Loading...)</CardTitle>
+          <CardTitle>Sales by Region (Loading...)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
@@ -38,11 +35,11 @@ export const RegionalChart = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Sales by Province</CardTitle>
+          <CardTitle>Sales by Region</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
-            <div className="text-red-500">Error loading regional data</div>
+            <div className="text-red-500">Error loading regional data: {error.message}</div>
           </div>
         </CardContent>
       </Card>
@@ -53,7 +50,7 @@ export const RegionalChart = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Sales by Province
+          Sales by Region
           <span className="text-sm font-normal text-slate-500">(ZAR)</span>
         </CardTitle>
       </CardHeader>

@@ -2,22 +2,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-
-const fetchSalesData = async () => {
-  const response = await fetch('/api/sales/monthly');
-  if (!response.ok) throw new Error('Failed to fetch sales data');
-  return response.json();
-};
+import { fetchDashboardData, extractSalesData } from "@/services/apiService";
 
 const formatZAR = (value: number) => {
   return `R ${value.toLocaleString()}`;
 };
 
 export const SalesChart = () => {
-  const { data: salesData, isLoading, error } = useQuery({
-    queryKey: ['sales-monthly'],
-    queryFn: fetchSalesData,
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['dashboard-data'],
+    queryFn: fetchDashboardData,
   });
+
+  const salesData = dashboardData ? extractSalesData(dashboardData) : [];
 
   if (isLoading) {
     return (
@@ -42,7 +39,7 @@ export const SalesChart = () => {
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
-            <div className="text-red-500">Error loading sales data</div>
+            <div className="text-red-500">Error loading sales data: {error.message}</div>
           </div>
         </CardContent>
       </Card>

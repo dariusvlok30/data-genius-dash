@@ -2,28 +2,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-
-const fetchRevenueData = async () => {
-  const response = await fetch('/api/revenue/quarterly');
-  if (!response.ok) throw new Error('Failed to fetch revenue data');
-  return response.json();
-};
+import { fetchDashboardData } from "@/services/apiService";
 
 const formatZAR = (value: number) => {
   return `R ${(value / 1000).toFixed(0)}k`;
 };
 
 export const RevenueChart = () => {
-  const { data: revenueData, isLoading, error } = useQuery({
-    queryKey: ['revenue-quarterly'],
-    queryFn: fetchRevenueData,
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['dashboard-data'],
+    queryFn: fetchDashboardData,
   });
+
+  // Use monthly data since quarterly is empty
+  const revenueData = dashboardData ? dashboardData.dashboard_data.monthly_sales.slice(-6).map(item => ({
+    quarter: item.Month,
+    revenue: item.Revenue,
+    gross: item.Gross_Revenue
+  })) : [];
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Revenue & Profit Trends (Loading...)</CardTitle>
+          <CardTitle>Revenue Trends (Loading...)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
@@ -38,11 +40,11 @@ export const RevenueChart = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Revenue & Profit Trends</CardTitle>
+          <CardTitle>Revenue Trends</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
-            <div className="text-red-500">Error loading revenue data</div>
+            <div className="text-red-500">Error loading revenue data: {error.message}</div>
           </div>
         </CardContent>
       </Card>
@@ -53,7 +55,7 @@ export const RevenueChart = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Revenue & Profit Trends
+          Monthly Revenue Trends
           <span className="text-sm font-normal text-slate-500">(ZAR)</span>
         </CardTitle>
       </CardHeader>
@@ -75,7 +77,7 @@ export const RevenueChart = () => {
               <Tooltip 
                 formatter={(value: number, name: string) => [
                   `R ${value.toLocaleString()}`, 
-                  name === 'revenue' ? 'Revenue' : 'Profit'
+                  name === 'revenue' ? 'Net Revenue' : 'Gross Revenue'
                 ]}
                 labelClassName="text-slate-700"
                 contentStyle={{
@@ -91,10 +93,10 @@ export const RevenueChart = () => {
                 name="revenue"
               />
               <Bar 
-                dataKey="profit" 
+                dataKey="gross" 
                 fill="#10b981" 
                 radius={[4, 4, 0, 0]}
-                name="profit"
+                name="gross"
               />
             </BarChart>
           </ResponsiveContainer>

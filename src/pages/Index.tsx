@@ -10,39 +10,36 @@ import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { RegionalChart } from "@/components/dashboard/RegionalChart";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useQuery } from "@tanstack/react-query";
-
-const fetchKPIData = async () => {
-  const response = await fetch('/api/kpis');
-  if (!response.ok) throw new Error('Failed to fetch KPI data');
-  return response.json();
-};
-
-const fetchMetricsData = async (tab: string) => {
-  const response = await fetch(`/api/metrics/${tab}`);
-  if (!response.ok) throw new Error('Failed to fetch metrics data');
-  return response.json();
-};
+import { fetchDashboardData, extractKPIData } from "@/services/apiService";
 
 const Index = () => {
-  const { data: kpiData, isLoading: kpiLoading } = useQuery({
-    queryKey: ['kpis'],
-    queryFn: fetchKPIData,
+  const { data: dashboardData, isLoading: kpiLoading, error } = useQuery({
+    queryKey: ['dashboard-data'],
+    queryFn: fetchDashboardData,
   });
 
-  const { data: salesMetrics } = useQuery({
-    queryKey: ['metrics-sales'],
-    queryFn: () => fetchMetricsData('sales'),
-  });
+  const kpiData = dashboardData ? extractKPIData(dashboardData) : null;
+  const regionalData = dashboardData?.dashboard_data.regional_performance || [];
+  const salesData = dashboardData?.dashboard_data.monthly_sales || [];
+  const inventoryStatus = dashboardData?.dashboard_data.inventory_status;
 
-  const { data: inventoryMetrics } = useQuery({
-    queryKey: ['metrics-inventory'],
-    queryFn: () => fetchMetricsData('inventory'),
-  });
-
-  const { data: regionalMetrics } = useQuery({
-    queryKey: ['metrics-regional'],
-    queryFn: () => fetchMetricsData('regional'),
-  });
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+        <div className="max-w-7xl mx-auto">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="text-red-500 text-lg mb-2">Error loading dashboard data</div>
+              <div className="text-slate-600">{error.message}</div>
+              <div className="text-sm text-slate-500 mt-2">
+                Please check if the API endpoint is accessible: http://10.51.0.16:8089/dashboardresults?format=json
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -52,6 +49,11 @@ const Index = () => {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Business Intelligence Dashboard</h1>
             <p className="text-slate-600 mt-1">Real-time insights and analytics</p>
+            {dashboardData && (
+              <p className="text-xs text-slate-500 mt-1">
+                Last updated: {new Date(dashboardData.last_updated).toLocaleString()}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <ExportButton />
@@ -74,46 +76,45 @@ const Index = () => {
                 </Card>
               ))}
             </>
-          ) : (
+          ) : kpiData ? (
             <>
               <KPICard
                 title="Total Revenue"
-                value={kpiData?.totalRevenue || "Loading..."}
-                change={kpiData?.revenueChange || "..."}
-                trend="up"
+                value={kpiData.totalRevenue}
+                change={kpiData.revenueChange}
+                trend={kpiData.revenueChange.includes('-') ? 'down' : 'up'}
                 icon={DollarSign}
               />
               <KPICard
                 title="Total Orders"
-                value={kpiData?.totalOrders || "Loading..."}
-                change={kpiData?.ordersChange || "..."}
-                trend="up"
+                value={kpiData.totalOrders}
+                change={kpiData.ordersChange}
+                trend={kpiData.ordersChange.includes('-') ? 'down' : 'up'}
                 icon={Package}
               />
               <KPICard
                 title="Active Customers"
-                value={kpiData?.activeCustomers || "Loading..."}
-                change={kpiData?.customersChange || "..."}
+                value={kpiData.activeCustomers}
+                change={kpiData.customersChange}
                 trend="up"
                 icon={Users}
               />
               <KPICard
                 title="Growth Rate"
-                value={kpiData?.growthRate || "Loading..."}
-                change={kpiData?.growthChange || "..."}
-                trend="up"
+                value={kpiData.growthRate}
+                change={kpiData.revenueChange}
+                trend={kpiData.revenueChange.includes('-') ? 'down' : 'up'}
                 icon={TrendingUp}
               />
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Main Dashboard Content */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-fit">
+          <TabsList className="grid w-full grid-cols-3 lg:w-fit">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="sales">Sales</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="regional">Regional</TabsTrigger>
           </TabsList>
 
@@ -126,6 +127,21 @@ const Index = () => {
               <InventoryChart />
               <RegionalChart />
             </div>
+            
+            {dashboardData?.dashboard_data.ai_analysis && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>AI Business Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
+                      {dashboardData.dashboard_data.ai_analysis}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
@@ -133,63 +149,27 @@ const Index = () => {
               <SalesChart />
               <Card>
                 <CardHeader>
-                  <CardTitle>Sales Performance Metrics</CardTitle>
+                  <CardTitle>Monthly Sales Performance</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {salesMetrics?.thisMonth || "Loading..."}
+                  <div className="space-y-4">
+                    {salesData.slice(-3).map((month, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span className="font-medium">{month.Month}</span>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-blue-600">
+                            R {month.Revenue.toLocaleString()}
+                          </div>
+                          <div className={`text-sm ${month.Month_over_Month_Growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {month.Month_over_Month_Growth >= 0 ? '+' : ''}{month.Month_over_Month_Growth}% growth
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-green-700">This Month</div>
-                    </div>
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {salesMetrics?.lastMonth || "Loading..."}
-                      </div>
-                      <div className="text-sm text-blue-700">Last Month</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {salesMetrics?.growth || "Loading..."}
-                      </div>
-                      <div className="text-sm text-purple-700">Growth</div>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="inventory" className="space-y-6">
-            <InventoryChart />
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventory Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                    <span className="font-medium">Low Stock Items</span>
-                    <span className="text-red-600 font-bold">
-                      {inventoryMetrics?.lowStock || "..."}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                    <span className="font-medium">Reorder Required</span>
-                    <span className="text-yellow-600 font-bold">
-                      {inventoryMetrics?.reorderRequired || "..."}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <span className="font-medium">In Stock</span>
-                    <span className="text-green-600 font-bold">
-                      {inventoryMetrics?.inStock || "..."}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="regional" className="space-y-6">
@@ -200,27 +180,18 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {regionalMetrics?.topRegions?.map((region: any, index: number) => (
+                  {regionalData.slice(0, 6).map((region, index) => (
                     <div key={index} className="text-center p-4 border rounded-lg">
-                      <div className="text-xl font-bold">{region.name}</div>
+                      <div className="text-xl font-bold">{region.Region}</div>
                       <div className="text-2xl font-bold text-blue-600 mt-2">
-                        {region.sales}
+                        R {region.Total_Revenue.toLocaleString()}
                       </div>
-                      <div className="text-sm text-slate-600">{region.percentage} of total</div>
+                      <div className="text-sm text-slate-600">{region.Percentage_of_Total}% of total</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {region.Total_Orders} orders • {region.Active_Customers} customers
+                      </div>
                     </div>
-                  )) || (
-                    <>
-                      <div className="text-center p-4 border rounded-lg animate-pulse">
-                        <div className="h-16 bg-slate-200 rounded"></div>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg animate-pulse">
-                        <div className="h-16 bg-slate-200 rounded"></div>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg animate-pulse">
-                        <div className="h-16 bg-slate-200 rounded"></div>
-                      </div>
-                    </>
-                  )}
+                  ))}
                 </div>
               </CardContent>
             </Card>
